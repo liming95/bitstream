@@ -9,8 +9,8 @@
 #define SET_HIGH_BIT(number, size) (number | (unsigned int)(1 << (size*8-1)))
 #define CLEAR_HIGH_BIT(number, size) (number & (~(unsigned int)(1 << (size*8-1))))
 #define CLEAR_LOW_BIT(number) (number & (~1))
-#define WAIT_GLOBAL(number, size, condition) while((__ldg(&number) >> (size*8-1)) != condition)
-#define WAIT_SHARED(number, size, condition) while(((volatile uint32_t&)number >> (size*8-1)) != condition) {}
+//#define WAIT_GLOBAL(number, size, condition) while((__ldg(&number) >> (size*8-1)) != condition)
+#define WAIT(number, size, condition) while(((volatile uint32_t&)number >> (size*8-1)) != condition) {}
 #define GRID_NUM 2
 #define BLOCK_NUMBER 2
 #define THREAD_NUM_PER_BLOCK 2
@@ -32,7 +32,9 @@ __global__ void shift_left(uint32_t *bit_stream, int size, int shift_count, uint
         //device inter
         shift_block[0] |= shift_global[0];
         __threadfence();
+        shift_block[0] = SET_HIGH_BIT(shift_block[0], sizeof(uint32_t));
         shift_global[0] = CLEAR_HIGH_BIT(shift_global[0], sizeof(uint32_t));
+
     }
 
     if(threadIdx.x < blockDim.x-1){
@@ -44,7 +46,7 @@ __global__ void shift_left(uint32_t *bit_stream, int size, int shift_count, uint
     else{
         //block inter & device inter
         int block_idx = (blockIdx.x + 1) % gridDim.x;
-        WAIT_GLOBAL(shift_global[block_idx], sizeof(uint32_t), 0);
+        WAIT(shift_global[block_idx], sizeof(uint32_t), 0);
         shift_global[block_idx] |= bit_stream[thread_idx] >> (bit_length - shift_count);
         __threadfence();
         shift_global[block_idx] = SET_HIGH_BIT(shift_global[block_idx], sizeof(uint32_t));
@@ -52,12 +54,12 @@ __global__ void shift_left(uint32_t *bit_stream, int size, int shift_count, uint
 
     if(threadIdx.x == 0 && blockIdx.x != 0){
         //block inter
-        WAIT_GLOBAL(shift_global[blockIdx.x], sizeof(uint32_t), 1);
+        WAIT(shift_global[blockIdx.x], sizeof(uint32_t), 1);
         shift_block[0] = shift_global[blockIdx.x];
         shift_global[blockIdx.x] = CLEAR_HIGH_BIT(shift_global[blockIdx.x], sizeof(uint32_t));
     }
 
-    WAIT_SHARED(shift_block[threadIdx.x], sizeof(uint32_t), 1);
+    WAIT(shift_block[threadIdx.x], sizeof(uint32_t), 1);
     shift_block[threadIdx.x] = CLEAR_HIGH_BIT(shift_block[threadIdx.x], sizeof(uint32_t));
     bit_stream[thread_idx] = (bit_stream[thread_idx] << shift_count) | shift_block[threadIdx.x];
 
