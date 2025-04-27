@@ -29,8 +29,8 @@ __global__ void bit_stream_add1_parallel(uint32_t *stream1, uint32_t *stream2,
 }
 
 #define GRID_NUM 1
-#define BLOCK_NUM 1
-#define THREAD_NUM_PER_BLOCK 4
+#define BLOCK_NUM 2
+#define THREAD_NUM_PER_BLOCK 2
 #define BYTE_SIZE 8
 #define CLEAR_LOWEST_BIT_MASK 0xFFFFFFFE
 #define LEFT_SHIFT_BIT(num, count) (num << count)
@@ -44,7 +44,7 @@ __global__ void bit_stream_add1_parallel(uint32_t *stream1, uint32_t *stream2,
 { printf("wait:"); printf("(num:%u",num); printf("count:%u", count); printf("%u\n)", target);}
 
 __device__ uint32_t carry_global, propagate_global, carry_global_flag;
-__device__ int carry_global_lock, propagate_global_lock, carry_global_flag_lock;
+// __device__ int carry_global_lock, propagate_global_lock, carry_global_flag_lock;
 // __device__ void lock(int *mutex) {
 //     printf("muxte:%d\n",*mutex);
 //     while (atomicCAS(mutex, 0, 1) != 0){ printf("muxte_while:%d\n",*mutex);};
@@ -106,7 +106,7 @@ __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
     // block
     if(threadIdx.x < blockDim.x-1){
         atomicOr(&carry_block, LEFT_SHIFT_BIT(carry_bit, threadIdx.x + 1));
-        printf("carry_block_x_1-: %u\n", carry_block);
+        printf("carry_block_%u_%u : %u\n", bid, threadIdx.x, carry_block);
     }
     // global
     if(threadIdx.x == (uint32_t)(blockDim.x-1)){
@@ -159,7 +159,7 @@ __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
         carry_bit = get_carry_bit(carry_global, propagate_global, tmp2, shift_count);
 
         tmp2 ^= propagate_global;
-        tmp2 &= (carry_global >> 1) << 1;
+        tmp2 |= (carry_global >> 1) << 1;
 
         atomicOr(&carry_global, LEFT_SHIFT_BIT(carry_bit, 0));
         // correct the tmp1 except block 0 
@@ -168,7 +168,7 @@ __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
         }
         // update the carry_block: post-matchstar
         tmp1 ^= propagate_block;
-        carry_block &= tmp1;
+        carry_block |= tmp1;
         printf("carry_block:%u\n", carry_block);
     }
     __syncthreads();
@@ -204,9 +204,9 @@ int main(){
     uint32_t initial_value = 0;
     cudaMemcpyToSymbol(carry_global, &initial_value, sizeof(uint32_t));
     cudaMemcpyToSymbol(propagate_global, &initial_value, sizeof(uint32_t));
-    cudaMemcpyToSymbol(carry_global_lock, &initial_value, sizeof(int));
-    cudaMemcpyToSymbol(propagate_global_lock, &initial_value, sizeof(int));
-    cudaMemcpyToSymbol(carry_global_flag_lock, &initial_value, sizeof(int));
+    // cudaMemcpyToSymbol(carry_global_lock, &initial_value, sizeof(int));
+    // cudaMemcpyToSymbol(propagate_global_lock, &initial_value, sizeof(int));
+    // cudaMemcpyToSymbol(carry_global_flag_lock, &initial_value, sizeof(int));
 
     for(int i = 0; i < GRID_NUM; i++){
         initial_value = 1;
