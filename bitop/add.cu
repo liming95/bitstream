@@ -35,7 +35,7 @@ __global__ void bit_stream_add1_parallel(uint32_t *stream1, uint32_t *stream2,
 #define CLEAR_LOWEST_BIT_MASK 0xFFFFFFFE
 #define LEFT_SHIFT_BIT(num, count) (num << count)
 #define RIGHT_SHIFT_BIT(num, count) ((num >> count) & 0x00000001)
-#define PROPAGATE_MASK(count) ((1 << count) - 1)
+#define PROPAGATE_MASK(N) ((N) >= 32 ? 0xFFFFFFFFU : ((1U << (N)) - 1U))
 #define SET(num, index) atomicOr(&num, 1 << index)
 #define UNSET(num, index) atomicAnd(&num, ~(1 << index))
 #define CHECK_LOCK(num, index) (num & (1 << index))
