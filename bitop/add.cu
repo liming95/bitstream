@@ -22,7 +22,7 @@ void bit_stream_add(uint32_t *stream1, uint32_t *stream2, uint32_t *result, size
  * 2. carry bit
  * C(i) = C(i-1) + P(i-1)C(i-1)
  * S(i) = P(i)^C(i)
-*/ 
+*/
 __global__ void bit_stream_add1_parallel(uint32_t *stream1, uint32_t *stream2,
     uint32_t *result, size_t size){
 
@@ -65,7 +65,7 @@ __device__ uint32_t get_carry_bit(uint32_t op1, uint32_t op2, uint32_t sum, int 
     cond2 = (op1_highest_bit ^ op2_highest_bit) & (!sum_highest_bit);
     return cond1 | cond2;
 }
-/*MatchStar: 
+/*MatchStar:
  *
  */
 __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
@@ -122,9 +122,9 @@ __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
         atomicAnd(&carry_global, ~((uint32_t)LEFT_SHIFT_BIT(1, bid)));
         UNSET(carry_global_flag, bid);
         printf("carry_block_1-_0: %u\n", carry_block);
-    } 
+    }
     __syncthreads();
-    
+
     if((bid == 0) && (threadIdx.x == 0)){
         WAIT(carry_global_flag, bid, (uint32_t)1);
         UNSET(carry_global_flag, bid);
@@ -162,9 +162,9 @@ __global__ void bit_stream_add2_parallel(uint32_t *stream1, uint32_t *stream2,
         tmp2 |= (carry_global >> 1) << 1;
 
         atomicOr(&carry_global, LEFT_SHIFT_BIT(carry_bit, 0));
-        // correct the tmp1 except block 0 
+        // correct the tmp1 except block 0
         if(bid > 0){
-            tmp1 += RIGHT_SHIFT_BIT(tmp2, bid); 
+            tmp1 += RIGHT_SHIFT_BIT(tmp2, bid);
         }
         // update the carry_block: post-matchstar
         tmp1 ^= propagate_block;
