@@ -95,7 +95,7 @@ def concat_compacted_bit_streams(sp_marker1: CompactBitStream, sp_marker2: Compa
     return CompactBitStream(marker, marker_index), sp_carry_bit
 
 # alternation operation for compacted bit streams
-def alt_compacted_bit_streams(*marker, sp_indexes, streams):
+def alt_compacted_bit_streams(marker: CompactBitStream, indexes: list, streams: List[CompactBitStream]) -> CompactBitStream:
     """
     Create an alternation of multiple compacted bit streams.
 
@@ -105,9 +105,27 @@ def alt_compacted_bit_streams(*marker, sp_indexes, streams):
         streams: The compacted bit streams to alternate.
 
     Returns:
-        A single alternated compacted bit stream.
+        A single compacted bit stream representing the alternation.
     """
-    return marker
+    if not isinstance(marker, CompactBitStream):
+        raise TypeError("marker must be a CompactBitStream instance.")
+    if not isinstance(indexes, list):
+        raise TypeError("indexes must be a list.")
+    if not all(isinstance(stream, CompactBitStream) for stream in streams):
+        raise TypeError("All streams must be CompactBitStream instances.")
+
+    result_marker = bytearray()
+    result_indexes = []
+
+    for i in range(len(indexes)):
+        combined_marker = bytearray()
+        for stream in streams:
+            expanded_stream = expand_compacted_bit_stream(stream, indexes)
+            combined_marker.append(expanded_stream[i] | marker.marker[i])
+        result_marker.append(combined_marker[0])  # Assuming we take the first byte for simplicity
+        result_indexes.append(indexes[i])
+
+    return CompactBitStream(result_marker, result_indexes)
 
 # Kleene Star operation for compacted bit streams
 def kleene_star_compacted_bit_streams(marker, sp_indexes, streams):
