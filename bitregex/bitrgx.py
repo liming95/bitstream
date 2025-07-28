@@ -73,10 +73,12 @@ def get_dict_spc_bit(carry_bits: dict, pos: int) -> dict:
         assert isinstance(value, bytearray), f"Value for key {key} must be a bytearray."
         index = pos // 8
         offset = pos % 8
-
+        if index >= len(value):
+            carry_bit_spc[key] = 0
+            continue
         spc_bit = value[index] & (1 << offset)
         carry_bit_spc[key] = spc_bit >> offset
-
+    carry_bit_spc['bit_len_used'] = 1
     return carry_bit_spc
 
 def update_dict_spc_bit(carry_bits: dict, carry_bit: dict, pos: int):
@@ -109,7 +111,7 @@ def kleene_star_bit_streams(
     matcher: Callable[[bytearray, list, int, dict], Tuple[bytearray, dict]],
     length: int = 1,
     carry_bits: dict = None
-    ) -> Tuple[bytearray, int]:
+    ) -> Tuple[bytearray, dict]:
     """
     Apply Kleene star operation to a bit stream.
     """
