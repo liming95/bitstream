@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-print ("Hello, World!") 
-MASK = (1 << 32) -1 
+print ("Hello, World!")
+MASK = (1 << 32) -1
 def logical_right_shift(value, shift, bits=32):
     mask = (1 << bits) - 1
     return (value & mask) >> shift
@@ -24,7 +24,7 @@ def extract_leftmost_1block(value):
         block_num = block_num + 1
         backslash_block_first_start = extract_and_smear_rightmost_1(backslash_block)
         backslash_block_first = backslash_block & backlash_block_first_start
-        backslash_block_first_end = extract_and_smear_rightmost_1(~backslash_block_first) 
+        backslash_block_first_end = extract_and_smear_rightmost_1(~backslash_block_first)
         backslash_block = backslash_block_first & (~backslash_block_first_end)
     return (backslash_final, block_num)
 
@@ -39,7 +39,7 @@ class PatternForest:
             (name, node_list) = forest[i]
             pattern_tree = PatternTree(node_list)
             self.forest[name] = [pattern_tree]
-    
+
     def insert_pattern(self, pattern):
         assert self.tree_num == len(pattern)
         forest = pattern.iterms()
@@ -60,7 +60,7 @@ class PatternForest:
                 node.children.append(0)
             del self.node_in_level[self.level_num-1][0].children[0]
             self.root.children.append(0)
-        
+
         def insert_pattern(self, pattern):
             assert self.level_num == len(pattern)
             parent = self.root
@@ -80,7 +80,7 @@ class PatternForest:
                     node = PatternNode(pattern[i])
                     self.node_in_level[i].append(node)
                     parent.children.append(len(self.node_in_level[i])-1)
-                    parent = node 
+                    parent = node
 
     class PatternNode:
 
@@ -109,10 +109,10 @@ class MisonParser:
             nested_level = len(split(field_name, '.'))
             level = level > nested_level \
                 ? level : nested_level
-        
+
         for i in range(level):
             pattern_field.append({})
-        
+
         for field in field_list:
             field_layer = split(field, '.')
             field_name = "root"
@@ -122,7 +122,7 @@ class MisonParser:
                     pattern_field[i][field_name] = True
                 else:
                     pattern_field[i][field_name] = False
-    
+
     def display_fields(self):
         # 1.training_phase
         # 2.travel all the reminding json record
@@ -141,13 +141,13 @@ class MisonParser:
             record = self.text[i]
             bitmap = get_bitmap_colon(record)
             # pattern = {"root":[(field, positions),...], "root.nested_field":[(field, position),...],...}
-            pattern = parser_training(record, bitmap) 
+            pattern = parser_training(record, bitmap)
             collect_pattern(pattern)
-    
+
     def get_bitmap_colon(self, record_json):
         # return structural colon bitmap
         # 1.travel json record to build bitmaps for "\", """, ":", "{", "}"
-        
+
         num_ints = (len(record_json) + bitmap_word_size-1) / bitmap_word_size
         backslash_bitmap = [0] * num_ints
         quote_bitmap = [0] * num_ints
@@ -155,7 +155,7 @@ class MisonParser:
         colon_bitmap = [0] * num_ints
         left_brace = [0] * num_ints
         right_brace = [0] * num_ints
-        
+
 
         for i, char in enumerate(record_json):
             int_index = i / bitmap_word_size
@@ -171,7 +171,7 @@ class MisonParser:
                 left_brace_bitmap[int_index] |= bit_position
             if char == "}":
                 right_brace_bitmap[int_index] |= bit_position
-        
+
         # 2.build structural """ bitmap
         for i in range(num_ints):
             if i != num_ints - 1:
@@ -181,7 +181,7 @@ class MisonParser:
             else:
                 pro_escaped_char_bitmap = \
                     backslask_bitmap[i] & logical_right_shift(quote_bitmap[i], 1)
-            
+
             escaped_char_bitmap = pro_escaped_char_bitmap
             while pro_escaped_char_bitmap != 0:
                 first_escaped_char = extract_and_smear_rightmost_1(pro_escaped_char_bitmap)
@@ -206,7 +206,7 @@ class MisonParser:
             quote_bitmap[i] = quote_bitmap[i] ^ (escaped_char_bitmap << 1)
             if i != num_ints -1:
                 quote_bitmap[i+1] = quote_bitmap[i+1] ^ logical_right_shift(quote_bitmap[i+1])
-         
+
         # 3.build string bitmap
         quote_num = 0
         for i in range(num_ints):
@@ -217,35 +217,35 @@ class MisonParser:
                 string_bit = string_bit ^ first_quote_char
                 quote_bit = remove_rightmost_1(quote_bit)
                 quote_num = quote_num + 1
-            
+
             if quote_num % 2 == 1:
                 string_bitmap[i] = ~string_bit
             else:
                 string_bitmap[i] = string_bit
-        
-    
+
+
         # 4.build structural colon bitmap
         for i in range(num_ints):
             colon_bitmap[i] = colon_bitmap[i] ^ (colon_bitmap[i] & string_bitmap[i])
             right_brace_bitmap[i] = right_brace_bitmap[i] ^ (colon_bitmap[i] & string_bitmap[i])
             left_brace_bitmap[i] = left_brace_bitmap[i] ^ (left_brace_bitmap[i] & string_bitmap[i])
-        
+
         # 5.build leveled colon bitmap
         colon_level = 0
         for field_name in self.field:
             nested_level = len(split(field_name, '.'))
             colon_level = colon_level > nested_level \
                 ? colon_level : nested_level
-        
+
         colon_level_bitmap = []
         for i in range(colon_level):
             colon_level_bitmap.append(colon_bitmap[:])
-        
+
         stack = []
         for i in range(num_ints):
             left_brace_bit = left_brace_bitmap[i]
             right_brace_bit = right_brace_bitmap[i]
-            
+
             while True:
                 first_right_brace_char = extract_rightmost_1(right_brace_bit)
                 first_left_brace_char = extract_rightmost_1(left_brace_bit)
@@ -271,11 +271,11 @@ class MisonParser:
                                 colon_level_bitmap[stack_depth-1][i] & (first_right_brace_char)
                             for j in range(left_brack_word_index+1, i):
                                 colon_level_bitmap[stack_depth-1][j] = 0
-                
+
                 right_brace_bit = remove_rightmost_1(right_brace_bit)
                 if (right_brace_bit == 0) and (left_brace_bit == 0):
                     break
-        
+
         assert len(stack) == 0
 
         # That the level bitmap is not clear is also ok.
@@ -284,18 +284,18 @@ class MisonParser:
                 colon_level_bitmap[colon_level-i][j] = \
                     colon_level_bitmap[colon_level-i-1][j] ^ \
                     colon_level_bitmap[colon_level-i][j]
-        
+
         return colon_level_bitmap
 
     def parser_training(self, record_json, bitmap_level_colon):
-        # 1. resolve the queried fields 
+        # 1. resolve the queried fields
         # 2. return <fields, positions>
         pattern = parser_record(record_json, bitmap_level_colon)
         return pattern
 
 
     def collect_pattern(self, field_position_pairs):
-        # 1. identify the type of field_position_pairs 
+        # 1. identify the type of field_position_pairs
         # (missing, out_of_order, mixed)
         # 2. build nodes for the pairs
         # 3. insert this pattern into pattern tree
@@ -324,13 +324,13 @@ class MisonParser:
             elif i == end_index/bitmap_word_size:
                 bit_position = end_index % bitmap_word_size
                 mask_clear = extract_rightmost_1(1 << bit_position) - 1
-                colon_bit_word = colon_bit_word & mask_clear 
+                colon_bit_word = colon_bit_word & mask_clear
 
             while colon_bit_word != 0:
                 logic_position = logic_position + 1
                 first_colon_bit_block = extract_and_smear_rightmost_1(colon_bit_word)
                 colon_physical_index = bitmap_2_index(i, first_colon_bit_block)
-                
+
                 field_name = get_field_name(record_json, colon_physical_index-1)
                 field_key = pre_field_name+'.'+field_name
                 if field_key in self.pattern_field[level]:
@@ -356,35 +356,35 @@ class MisonParser:
                                 if next_colon_word_index == end_index/bitmap_word_size:
                                     remainder_colon_bitmap = remainder_colon_bitmap & \
                                         ((1 << (end_index % bitmap_word_size)) - 1)
-                                
+
                             elif next_colon_word_index == end_index/bitmap_word_size:
                                 end_index_nested = end_index
-                         
+
                         pattern_nested = parser_record(record_json,bitmap_level_colon,\
                             start_index_nested, end_index_nested, level+1, field_key)
                         pattern.update(pattern_nested)
                 colon_bit_word = remove_rightmost_1(colon_bit_word)
-        
+
         return pattern
 
     def bitmap_2_index(self, index_ints, bit_char, size=32):
         return index_ints * size + index_char.bit_count()
-    
+
     def get_field_name(self, record_json, colon_physical_index):
         start_index = end_index = colon_physical_index - 1
         while (record_json[start_index] != ',') and (record_json[start_index] != '{'):
             assert satart_index >= 0
             start_index = start_index - 1
-        
+
         field_name = record_json[start_index+1:end_index+1]
         return field_name
-    
+
     def get_field_value(self, record_json, colon_physical_index):
         start_index = end_index = colon_physical_index + 1
         while (record_json[end_index] != ',') and (record_json[end_index] != '}'):
             assert end_index < len(record_json)
             end_index = end_index + 1
-        
+
         field_value = record_json[start_index: end_index]
         return field_value
 
@@ -395,7 +395,7 @@ class MisonParser:
         # 4.return fields
 
     def parser_speculation(self, record_json, bitmap_colon):
-        # 1. covert logic position(pattern tree) to physical index(bitmap) for each field 
+        # 1. covert logic position(pattern tree) to physical index(bitmap) for each field
         # 2. check if the fields from the json text is matching the query field.
         # 3. if it is unequal, using the next pattern until all patterns used
         # 4. return the result of quired result and whether it is right

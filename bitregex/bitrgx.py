@@ -1,4 +1,6 @@
 # Concatenation operations for bit streams
+from bitregex.utils import debug_print
+
 def concat_bit_streams(marker1: bytearray, marker2: bytearray, length: int = 1, carry_bit: int = 0):
     """
     Concatenate two bit streams into a single stream.
@@ -61,9 +63,17 @@ def get_dict_spc_bit(carry_bits: dict, pos: int) -> dict:
         The special bit at the specified position.
     """
     carry_bit_spc = {}
+    bit_length = carry_bits['bit_len_used']
+    if pos >= bit_length:
+        carry_bit_spc = {key: 0 for key in carry_bits.keys()}
+        return carry_bit_spc
     for key, value in carry_bits.items():
+        if key == 'bit_len_used':
+            continue
+        assert isinstance(value, bytearray), f"Value for key {key} must be a bytearray."
         index = pos // 8
         offset = pos % 8
+
         spc_bit = value[index] & (1 << offset)
         carry_bit_spc[key] = spc_bit >> offset
 
@@ -84,6 +94,8 @@ def update_dict_spc_bit(carry_bits: dict, carry_bit: dict, pos: int):
     assert isinstance(carry_bits, dict), "carry_bits must be a dictionary."
     assert isinstance(carry_bit, dict), "carry_bit must be a dictionary."
     for key, value in carry_bit.items():
+        if key == 'bit_len_used':
+            continue
         index = pos // 8
         offset = pos % 8
         assert key in carry_bits and isinstance(carry_bits[key], bytearray), f"Key {key} must exist in carry_bits and be a bytearray."
@@ -107,18 +119,22 @@ def kleene_star_bit_streams(
         raise TypeError("Matcher must be a callable function.")
 
     marker = bytearray(marker1)
-    carry_bits_out = {}
+    carry_bits_out = {k: type(v)() for k, v in carry_bits.items()}
+
     marker_tmp = bytearray(marker1)
     carry_bit_tmp = {}
 
     iterations = 0
-    while any(marker_tmp) or (iterations < carry_bits.get('ks_shift_num', 0)):  # Limit iterations to prevent infinite loop
+    while any(marker_tmp) or (iterations < carry_bits['bit_len_used']):  # Limit iterations to prevent infinite loop
         carry_bit_tmp = get_dict_spc_bit(carry_bits, iterations)
-        marker_tmp, carry_bit_tmp = matcher(marker1, [], length, carry_bit_tmp)
-        marker |= bytearray([a | b for a, b in zip(marker, marker_tmp)])
+        debug_print(f"Iteration {iterations} 0 : marker_tmp={marker_tmp}, carry_bit_tmp={carry_bit_tmp}")
+        marker_tmp, carry_bit_tmp = matcher(marker_tmp, [], length, carry_bit_tmp)
+        debug_print(f"Iteration {iterations} 1 : marker_tmp={marker_tmp}, carry_bit_tmp={carry_bit_tmp}")
+
+        marker = bytearray([a | b for a, b in zip(marker, marker_tmp)])
         update_dict_spc_bit(carry_bits_out, carry_bit_tmp, iterations)
         iterations += 1
-    carry_bits_out['ks_shift_num'] = iterations
+    carry_bits_out['bit_len_used'] = iterations
 
     return marker, carry_bits_out
 
@@ -154,14 +170,26 @@ def test_kleene_star_bit_streams():
     Test the kleene_star_bit_streams function.
     """
     marker1 = bytearray([0b11001100, 0b10101010])
-    def matcher(marker, indexes, length, carry_bits):
+    def matcher(marker, markers, length, carry_bit):
         # Simple matcher that returns the same marker and carry bits
+        marker2 = bytearray([0b11110000, 0b00000000])
+        carry_bit_tmp = 0
+        debug_print(f"Matcher: marker={marker}, marker2={marker2}, length={length}, carry_bit={carry_bit}")
+        for i in range(0, length):
+            if i >= len(marker):
+                raise IndexError("Index out of range for the marker.")
+            carry_bit_tmp = (marker[i] & 0x80) >> 7
 
-        return marker, carry_bits
+            marker[i] = ((marker[i] << 1) | carry_bit['test']) & 0xFF
+            debug_print(f"Matcher: marker[{i}]={marker[i]}, carry_bit_tmp={carry_bit_tmp}")
+            marker[i] = marker[i] & marker2[i]
+            carry_bit['test'] = carry_bit_tmp
+        debug_print(f"Matcher: marker={marker}, carry_bit={carry_bit}")
+        return marker, carry_bit
 
-    expect_marker = bytearray([0b11001100, 0b10101010])
-    expect_carry_bits = {'ks_shift_num': 1}
-    result_marker, result_carry_bits = kleene_star_bit_streams(marker1, matcher)
+    expect_marker = bytearray([0b11111100, 0b10101010])
+    expect_carry_bits = {'bit_len_used': 5,'test': bytearray([0b00000001])}
+    result_marker, result_carry_bits = kleene_star_bit_streams(marker1, matcher, length=2, carry_bits={'bit_len_used': 1,'test': bytearray([0b00000001])})
 
     assert result_marker == expect_marker, f"Expected {expect_marker}, got {result_marker}"
     assert result_carry_bits == expect_carry_bits, f"Expected {expect_carry_bits}, got {result_carry_bits}"
@@ -170,4 +198,5 @@ def test_kleene_star_bit_streams():
 if __name__ == "__main__":
     test_concat_bit_streams()
     test_alt_bit_streams()
+    test_kleene_star_bit_streams()
     print("All tests passed!")

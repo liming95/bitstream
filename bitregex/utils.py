@@ -1,3 +1,9 @@
+DEBUG = False
+
+def debug_print(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 #1. character -> bit stream
 def char_to_bit_stream(data: bytearray):
     """
