@@ -24,6 +24,10 @@ class CompactBitStream:
         for i in range(len(other.indexes)):
             if other.indexes[i] not in self.indexes:
                 # Append new index and marker by sorted order
+                if other.indexes[i] > self.indexes[-1]:
+                    self.indexes.append(other.indexes[i])
+                    self.marker.append(other.marker[i])
+                    continue
                 for j in range(len(self.indexes)):
                     if other.indexes[i] < self.indexes[j]:
                         self.indexes.insert(j, other.indexes[i])
@@ -32,6 +36,26 @@ class CompactBitStream:
             else:
                 index = self.indexes.index(other.indexes[i])
                 self.marker[index] |= other.marker[i]
+
+    def add(self, spc_marker: 'int', index: 'int'):
+        self.marker.append(spc_marker)
+        self.indexes.append(index)
+
+    def extend(self, other: 'CompactBitStream'):
+        self.marker.extend(other.marker)
+        self.indexes.extend(other.indexes)
+
+    def marker_within_bounds(self, start, end):
+        compacted_stream = CompactBitStream()
+        indexes = self.indexes
+        marker = self.marker
+
+        for i in range(len(indexes)):
+            if not (start <= indexes[i] <= end):
+                continue
+            compacted_stream.add(marker[i], indexes[i])
+        return compacted_stream
+
 
 def expand_compacted_bit_stream(compact_stream: CompactBitStream, sp_indexes: List[int]) -> bytearray:
     """
@@ -94,6 +118,7 @@ def concat_compacted_bit_streams(sp_marker1: CompactBitStream, sp_marker2: Compa
     carry_index = sp_carry_bit.index
     carry_bit = sp_carry_bit.value
 
+    length = min(length, len(sp_indexes))
     for i in range(0, length):
         if i >= len(sp_indexes):
             raise IndexError("Index out of range for one of the streams.")
@@ -141,6 +166,8 @@ def alt_compacted_bit_streams(sp_marker1: CompactBitStream, sp_marker2: CompactB
     debug_print(f"Alternating compacted bit streams: marker1={marker1}, marker2={marker2}, length={length}")
     marker = bytearray()
     marker_index = []
+
+    length = min(length, len(sp_indexes))
     for i in range(0, length):
         if i >= len(sp_indexes):
             raise IndexError("Index out of range for one of the streams.")
@@ -245,7 +272,9 @@ def kleene_star_compacted_bit_streams(sp_marker: CompactBitStream, sp_indexes: l
         update_dict_spc_pos(carry_bits_dict_out, carry_bit_dict, iteration)
 
         if any(marker_tmp.marker):
+            debug_print(f'new marker: {marker_tmp.marker} index: {marker_tmp.indexes}')
             marker.update(marker_tmp)
+            debug_print(f'marker: {marker.marker} index: {marker.indexes}')
         iteration += 1
         carry_bits_dict_out['bit_len_used'] = iteration
 

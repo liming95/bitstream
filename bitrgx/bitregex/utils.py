@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 
 def debug_print(*args, **kwargs):
     if DEBUG:
@@ -143,7 +143,7 @@ def compact_sparse_marker_to_index_list(marker: bytearray):
     return indexes, compacted_marker
 
 #4. merge and sort index lists
-def merge_and_sort_index_lists(*index_lists):
+def merge_and_sort_index_lists(index_lists):
     """
     Merge and sort multiple index lists.
 
