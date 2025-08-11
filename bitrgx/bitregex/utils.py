@@ -162,6 +162,48 @@ def merge_and_sort_index_lists(index_lists):
 
     return sorted(set(merged_list))  # Remove duplicates and sort
 
+#5. bitstrems to index list
+def bit_to_index_list(index: int, stream: int):
+    if not isinstance(index, int) or not isinstance(stream, int):
+        raise TypeError("Inputs must be integers.")
+    index_list = []
+    for i in range(8):
+        if (stream & (1 << i)) != 0:
+            index_list.append(index * 8 + i)
+    return index_list
+
+class BitStreamType:
+    SEQUENCE = 0
+    COMPACT = 1
+
+def bit_stream_to_index_list(stream: bytearray, indexes: list=[], type: BitStreamType=BitStreamType.SEQUENCE):
+    """
+    Convert a bit stream to an index list.
+
+    Args:
+        stream: A bytearray representing the bit stream.
+        indexes: An optional list of indexes to use.
+        type: The type of bit stream (SEQUENCE or COMPACT).
+
+    Returns:
+        A list of indexes where the bits are set.
+    """
+    if not isinstance(stream, bytearray):
+        raise TypeError("Input must be a bytearray.")
+    if not isinstance(indexes, list):
+        raise TypeError("Indexes must be a list.")
+    if type not in (BitStreamType.SEQUENCE, BitStreamType.COMPACT):
+        raise ValueError("Invalid bit stream type.")
+
+    index_list = []
+    for i in range(len(stream)):
+        if type == BitStreamType.SEQUENCE:
+            index_list.extend(bit_to_index_list(i, stream[i]))
+        elif type == BitStreamType.COMPACT:
+            index_list.extend(bit_to_index_list(indexes[i], stream[i]))
+
+    return index_list
+
 def test_char_to_bit_stream():
     """
     Test the char_to_bit_stream function with a sample input.
@@ -232,11 +274,32 @@ def test_merge_and_sort_index_lists():
 
     expected_result = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
-    result = merge_and_sort_index_lists(list1, list2, list3)
+    result = merge_and_sort_index_lists([list1, list2, list3])
 
     assert result == expected_result, f"Expected {expected_result}, got {result}"
 
     print("Test passed!")
+
+def test_bit_stream_to_index_list():
+    """
+    Test the bit_stream_to_index_list function with a sample input.
+    """
+    stream = bytearray(b'\x01\x02\x04\x08\x10\x20\x40\x80')
+    expected_indexes = [0, 9, 18, 27, 36, 45, 54, 63]
+
+    result = bit_stream_to_index_list(stream)
+
+    assert result == expected_indexes, f"Expected {expected_indexes}, got {result}"
+
+    # Test with compact bit stream
+    stream_compact = bytearray(b'\x01\x03\x04\x08')
+    indexes = [0, 2, 4, 6]
+    expected_indexes = [0, 16, 17, 34, 51]
+    result_compact = bit_stream_to_index_list(stream_compact, indexes, BitStreamType.COMPACT)
+    assert result_compact == expected_indexes, f"Expected {expected_indexes}, got {result_compact}"
+
+    print("Test passed!")
+
 
 if __name__ == "__main__":
     test_char_to_bit_stream()
@@ -244,6 +307,8 @@ if __name__ == "__main__":
     test_get_special_char_bit_streams()
     test_compact_sparse_marker_to_index_list()
     test_merge_and_sort_index_lists()
+    test_bit_stream_to_index_list()
+    print("All tests passed!")
     # import sys
     # if len(sys.argv) != 2:
     #     print("Usage: python utils.py <bytearray>")
