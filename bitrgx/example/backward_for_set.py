@@ -1,6 +1,22 @@
 import itertools
 
 # This code is a simplified example of a backward pass for a set-based operation.
+# regex expression: ba(nb)*
+# string:
+#   0: baxxxxxx
+#   1: bxxxxxxx
+#   2: xxxxxxxx
+#   3: anxxxxxx
+#   4: banbnbnx
+#   5: bxxxxxxx
+#   6: xxxxxxxb
+#   7: anbnxxxx
+# b_set = {0, 1, 4, 5, 6, 7}  # b_set
+# a_set = {0, 3, 4, 7}        # a_set
+# n_set = {3, 4, 7}           # n_set
+# regex matching result for a set-based operation : {0, 4, 5, 7}
+# backward pass for the dependency of the above result : {'b_set': {0, 4, 5, 6, 7}, 'a_set': {0, 4, 7}, 'n_set': {4, 7}}
+
 _inst_id_gen = itertools.count(1)
 
 def shift_right(s):
